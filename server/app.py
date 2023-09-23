@@ -1,70 +1,44 @@
 #!/usr/bin/env python3
-
-from flask import Flask, request, make_response, jsonify
-from flask_migrate import Migrate
-
-from models import db, Bakery, BakedGood
+from flask import Flask, jsonify, request
+from models import db, Book
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.json.compact = False
-
-migrate = Migrate(app, db)
-
 db.init_app(app)
 
-@app.route('/')
-def home():
-    return '<h1>Bakery GET-POST-PATCH-DELETE API</h1>'
+@app.route('/books', methods=['GET'])
+def get_books():
+    books = Book.query.all()
+    book_list = [book.to_dict() for book in books]
+    return jsonify(book_list)
 
-@app.route('/bakeries')
-def bakeries():
+@app.route('/books', methods=['POST'])
+def create_book():
+    data = request.json
+    new_book = Book(title=data['title'], author=data['author'])
+    db.session.add(new_book)
+    db.session.commit()
+    return jsonify(new_book.to_dict()), 201
 
-    bakeries = Bakery.query.all()
-    bakeries_serialized = [bakery.to_dict() for bakery in bakeries]
+@app.route('/books/<int:id>', methods=['GET', 'PATCH', 'DELETE'])
+def manage_book(id):
+    book = Book.query.get_or_404(id)
 
-    response = make_response(
-        bakeries_serialized,
-        200
-    )
-    return response
+    if request.method == 'GET':
+        return jsonify(book.to_dict())
 
-@app.route('/bakeries/<int:id>')
-def bakery_by_id(id):
+    if request.method == 'PATCH':
+        data = request.json
+        book.title = data.get('title', book.title)
+        book.author = data.get('author', book.author)
+        db.session.commit()
+        return jsonify(book.to_dict())
 
-    bakery = Bakery.query.filter_by(id=id).first()
-    bakery_serialized = bakery.to_dict()
-
-    response = make_response(
-        bakery_serialized,
-        200
-    )
-    return response
-
-@app.route('/baked_goods/by_price')
-def baked_goods_by_price():
-    baked_goods_by_price = BakedGood.query.order_by(BakedGood.price).all()
-    baked_goods_by_price_serialized = [
-        bg.to_dict() for bg in baked_goods_by_price
-    ]
-    
-    response = make_response(
-        baked_goods_by_price_serialized,
-        200
-    )
-    return response
-
-@app.route('/baked_goods/most_expensive')
-def most_expensive_baked_good():
-    most_expensive = BakedGood.query.order_by(BakedGood.price.desc()).limit(1).first()
-    most_expensive_serialized = most_expensive.to_dict()
-
-    response = make_response(
-        most_expensive_serialized,
-        200
-    )
-    return response
+    if request.method == 'DELETE':
+        db.session.delete(book)
+        db.session.commit()
+        return '', 204
 
 if __name__ == '__main__':
-    app.run(port=5555, debug=True)
+    app.run(debug=True)
