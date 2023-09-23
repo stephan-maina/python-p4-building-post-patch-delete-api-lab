@@ -1,49 +1,17 @@
-#!/usr/bin/env python3
+from app import db
+from models import Book
 
-from random import randint, choice as rc
+# Create and add some initial books to the database
+def seed_data():
+    with db.app.app_context():
+        db.create_all()
 
-from faker import Faker
+        book1 = Book(title='Hakuna Matata', author='Mark')
+        book2 = Book(title='Ghost of Garbatula', author='Keren')
+        book3 = Book(title='CR7 the G.O.A.T', author='Bat-tziyon')
 
-from app import app
-from models import db, Bakery, BakedGood
+        db.session.add(book1)
+        db.session.add(book2)
+        db.session.add(book3)
 
-fake = Faker()
-
-with app.app_context():
-
-    BakedGood.query.delete()
-    Bakery.query.delete()
-    
-    bakeries = []
-    for i in range(20):
-        b = Bakery(
-            name=fake.company()
-        )
-        bakeries.append(b)
-    
-    db.session.add_all(bakeries)
-
-    baked_goods = []
-    names = []
-    for i in range(200):
-
-        name = fake.first_name()
-        while name in names:
-            name = fake.first_name()
-        names.append(name)
-
-        bg = BakedGood(
-            name=name,
-            price=randint(1,10),
-            bakery=rc(bakeries)
-        )
-
-        baked_goods.append(bg)
-
-    db.session.add_all(baked_goods)
-    db.session.commit()
-    
-    most_expensive_baked_good = rc(baked_goods)
-    most_expensive_baked_good.price = 100
-    db.session.add(most_expensive_baked_good)
-    db.session.commit()
+        db.session.commit()
